@@ -1,0 +1,88 @@
+@@ -0,0 +1,88 @@
+#! /usr/bin/python3
+
+# Returns the LIVE Channels followed by the specified user
+
+# Requires:
+#  - Python 3.X
+#  - colorama
+#  - requests
+
+
+
+# USAGE: whosonline.py <user>
+import sys
+import requests
+import subprocess
+urls = []
+
+def fancy(stream, urls): # returns fancy output
+    import colorama
+    from colorama import Fore, Back, Style
+    colorama.init()
+
+    if 'status' in stream["channel"]:
+        print(str(len(urls) + 1) + Fore.YELLOW + '({0}) '.format(stream["game"]) + Style.RESET_ALL + Fore.GREEN+ '{0}'.format(stream["channel"]["display_name"]) + Style.RESET_ALL + " :: " + Fore.CYAN + u'"{0}"'.format(stream["channel"]["status"]).encode('ascii','ignore') + Style.RESET_ALL )
+
+        urls.append(stream["channel"]["url"])
+
+    else:
+        print(Fore.YELLOW + '({0}) '.format(stream["game"]) + Style.RESET_ALL + Fore.GREEN+ '{0}'.format(stream["channel"]["display_name"]) + Style.RESET_ALL)
+
+if len(sys.argv) > 1: 
+    user = sys.argv[1]
+else:
+    user = "kluxy" # set default user
+
+USER_FOLLOWED_CHANNELS="https://api.twitch.tv/kraken/users/{0}/follows/channels".format(user)
+
+fc = requests.get(USER_FOLLOWED_CHANNELS, params={ 'limit': 50 })
+
+if fc.json()["_total"] >= 1600:
+    print("Note: Twitch only allows the retrieval of 1,600 channels. This is hardcoded on their end.")
+
+fs = [ str(channel["channel"]["display_name"]).lower() for channel in fc.json()["follows"] ]
+
+FOLLOWED_STREAMERS = ",".join(fs)
+
+payload = { 'channel': FOLLOWED_STREAMERS, 'limit': 50 }
+
+ONLINE_STREAMERS = requests.get("https://api.twitch.tv/kraken/streams", params=payload)
+
+print("Here are the online streams followed by {0} ({1})".format(user, len(ONLINE_STREAMERS.json()["streams"])))
+sorted(ONLINE_STREAMERS.json()["streams"], key=lambda x:x['game'])
+
+os = [fancy(stream, urls)  for stream in sorted(ONLINE_STREAMERS.json()["streams"], key=lambda x:x['game'])]
+
+choice = None
+
+quality = 'low'
+
+while choice is None:
+    try:
+        choice = str(raw_input("choose a stream to view in VLC" + '\n' + 'Type 0 to exit - add medium or high to change resolution settings\n' )).split(' ')
+
+        if choice[0] == '0':
+            break
+
+        if len(choice) > 1:
+            quality = choice[1]
+
+        
+
+        print quality   
+            
+        try:
+            subprocess.call("livestreamer " + urls[int(choice[0]) - 1] + " " + quality)
+        except IndexError:
+            print "That's not a valid stream choice"
+            choice = None
+            
+    except ValueError:
+        print "Could you at least give a number"
+    
+    
+"""
+    
+""" 
+
